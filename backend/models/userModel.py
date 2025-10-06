@@ -28,4 +28,17 @@ class UserModel:
         return user
     
     def verify_password(self, password, hashed):
-        return check_password_hash(hashed, password)
+        # Accept both hashed and legacy plaintext passwords
+        try:
+            if isinstance(hashed, str) and hashed.startswith("pbkdf2:sha256"):
+                return check_password_hash(hashed, password)
+            return hashed == password
+        except Exception:
+            return False
+
+    def get_all_users(self):
+        cursor = self.conn.cursor(dictionary=True)
+        cursor.execute("SELECT user_id, name, email, phone, date_joined FROM User ORDER BY date_joined DESC, user_id DESC")
+        users = cursor.fetchall()
+        cursor.close()
+        return users

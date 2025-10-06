@@ -201,7 +201,7 @@
           if (data.success) {
             alert("Order placed successfully!");
             localStorage.removeItem('cart');
-            window.location.href = "/orders";
+            window.location.href = "/index.html";
           } else {
             alert("Failed to place order. Try again!");
           }

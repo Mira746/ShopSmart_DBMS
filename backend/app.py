@@ -142,11 +142,42 @@ def checkout():
         )
         order_id = cursor.lastrowid
 
-        # Insert order items
+        # Insert order items with robust product resolution
         for item in cart:
+            product_id = None
+            # Try direct numeric id
+            try:
+                product_id = int(item.get('id'))
+            except Exception:
+                product_id = None
+
+            # Fallback: resolve by product name
+            if not product_id:
+                name = str(item.get('name', '')).strip()
+                if name:
+                    cursor.execute("SELECT product_id FROM Product WHERE name = %s", (name,))
+                    row = cursor.fetchone()
+                    if row:
+                        product_id = int(row[0])
+
+            # Last resort: resolve by price (may be ambiguous)
+            if not product_id:
+                try:
+                    price_value = float(item.get('price'))
+                    cursor.execute("SELECT product_id FROM Product WHERE price = %s ORDER BY product_id LIMIT 1", (price_value,))
+                    row = cursor.fetchone()
+                    if row:
+                        product_id = int(row[0])
+                except Exception:
+                    pass
+
+            if not product_id:
+                conn.rollback()
+                return jsonify({"success": False, "message": f"Unknown product: {item}"}), 400
+
             cursor.execute(
                 "INSERT INTO OrderItem (order_id, product_id, quantity, price) VALUES (%s, %s, %s, %s)",
-                (order_id, int(item['id']), int(item['qty']), float(item['price']))
+                (order_id, product_id, int(item.get('qty', 1)), float(item.get('price', 0)))
             )
 
         conn.commit()
