@@ -28,18 +28,25 @@ from models.userModel import UserModel
 
 @app.route('/login_user', methods=['POST'])
 def login_user():
-    data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
+    try:
+        data = request.get_json(silent=True) or {}
+        email = (data.get('email') or '').strip()
+        password = (data.get('password') or '').strip()
 
-    user_model = UserModel()
-    user = user_model.get_user_by_email(email)
+        if not email or not password:
+            return jsonify({'success': False, 'message': 'Email and password are required'}), 400
 
-    if user and user_model.verify_password(password, user['password']):
-        session['user_email'] = email  # Save user email in session
-        return jsonify({'success': True, 'message': 'Login successful'})
-    else:
-        return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+        user_model = UserModel()
+        user = user_model.get_user_by_email(email)
+
+        if user and user_model.verify_password(password, user.get('password')):
+            session['user_email'] = email  # Save user email in session
+            return jsonify({'success': True, 'message': 'Login successful'})
+        else:
+            return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+    except Exception as e:
+        print('User login error:', e)
+        return jsonify({'success': False, 'message': 'Server error during login'}), 500
 
 
 from models.adminModel import AdminModel
@@ -58,6 +65,14 @@ def admin_login():
         return jsonify({'success': True, 'message': 'Login successful'})
     else:
         return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+
+
+# Simple API for admin pages
+@app.route('/api/users', methods=['GET'])
+def api_users():
+    user_model = UserModel()
+    users = user_model.get_all_users()
+    return jsonify(users)
 
 
 @app.route('/register_user', methods=['POST'])
